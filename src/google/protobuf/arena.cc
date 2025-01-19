@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <string>
 #include <vector>
 
@@ -70,10 +71,13 @@ inline size_t AllocationSize(size_t last_size, size_t start_size,
 }
 
 SizedPtr AllocateMemory(const AllocationPolicy& policy, size_t size) {
-  if (policy.block_alloc == nullptr) {
-    return AllocateAtLeast(size);
+  if (policy.memory_resource != nullptr) {
+    return {policy.memory_resource->allocate(size), size};
   }
-  return {policy.block_alloc(size), size};
+  if (policy.block_alloc != nullptr) {
+    return {policy.block_alloc(size), size};
+  }
+  return AllocateAtLeast(size);
 }
 
 SizedPtr AllocateBlock(const AllocationPolicy* policy_ptr, size_t last_size,
@@ -104,10 +108,13 @@ SizedPtr AllocateCleanupChunk(const AllocationPolicy* policy_ptr,
 class GetDeallocator {
  public:
   explicit GetDeallocator(const AllocationPolicy* policy)
-      : dealloc_(policy ? policy->block_dealloc : nullptr) {}
+      : memory_resource_(policy ? policy->memory_resource : nullptr),
+        dealloc_(policy ? policy->block_dealloc : nullptr) {}
 
   void operator()(SizedPtr mem) const {
-    if (dealloc_) {
+    if (memory_resource_) {
+      memory_resource_->deallocate(mem.p, mem.n);
+    } else if (dealloc_) {
       dealloc_(mem.p, mem.n);
     } else {
       internal::SizedDelete(mem.p, mem.n);
@@ -115,6 +122,7 @@ class GetDeallocator {
   }
 
  private:
+  std::pmr::memory_resource* memory_resource_;
   void (*dealloc_)(void*, size_t);
 };
 

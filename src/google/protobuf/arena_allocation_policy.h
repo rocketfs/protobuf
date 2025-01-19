@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory_resource>
 
 namespace google {
 namespace protobuf {
@@ -27,12 +28,14 @@ struct AllocationPolicy {
   size_t start_block_size = kDefaultStartBlockSize;
   size_t max_block_size = kDefaultMaxBlockSize;
 
+  std::pmr::memory_resource* memory_resource = nullptr;
   void* (*block_alloc)(size_t) = nullptr;
   void (*block_dealloc)(void*, size_t) = nullptr;
 
   bool IsDefault() const {
     return start_block_size == kDefaultStartBlockSize &&
-           max_block_size == kDefaultMaxBlockSize && block_alloc == nullptr &&
+           max_block_size == kDefaultMaxBlockSize &&
+           memory_resource == nullptr && block_alloc == nullptr &&
            block_dealloc == nullptr;
   }
 };

@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <new>  // IWYU pragma: keep for operator new().
 #include <string>
 #include <type_traits>
@@ -132,6 +133,11 @@ struct ArenaOptions {
   // The size of the initial block, if provided.
   size_t initial_block_size = 0;
 
+  // A memory_resource is used as a replacement for block_alloc and
+  // block_dealloc in Protobuf Arena. When a memory_resource is set, block_alloc
+  // and block_dealloc must be null.
+  std::pmr::memory_resource* memory_resource = nullptr;
+
   // A function pointer to an alloc method that returns memory blocks of size
   // requested. By default, it contains a ptr to the malloc function.
   //
@@ -148,6 +154,7 @@ struct ArenaOptions {
     internal::AllocationPolicy res;
     res.start_block_size = start_block_size;
     res.max_block_size = max_block_size;
+    res.memory_resource = memory_resource;
     res.block_alloc = block_alloc;
     res.block_dealloc = block_dealloc;
     return res;
